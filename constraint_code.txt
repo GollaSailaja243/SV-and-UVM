@@ -1,0 +1,182 @@
+//Write a constraint to generate a variable with 0-31 bits should be 1, 
+32-61 bits should be 0. 
+class seq_item;
+  rand bit [0:61] val;
+ 
+  constraint ca{
+    foreach(val[i]){
+      if(i<32)
+        val[i]==1;
+      
+      else
+        val[i]==0;
+    
+    }
+  }
+    
+endclass
+
+
+
+module constraint_example;
+  seq_item item;
+    
+  initial begin
+    item = new();
+
+     
+      item.randomize();
+    $display("Randomized value is %0b",item.val);
+       
+     
+
+  end
+endmodule
+
+
+// Write a constraint to generate FACTORIAL of first 5 even numbers and odd numbers .
+
+class seq_item;
+  rand int even[];
+  rand int odd[];
+  constraint arra_a{
+    
+    even.size()==5;
+    odd.size==5;
+   
+  }
+  
+  constraint ca{
+    foreach(even[i]){
+      even[i]==fact(2*i);
+      
+     
+    }}
+    
+      constraint odder{ 
+        foreach(odd[i]){
+          odd[i]==fact((2*i)+1);}
+    
+      }
+  function int fact(int a);
+    if(a==0)
+      return 1;
+    else
+     return a*fact(a-1);
+    
+     endfunction
+    
+    
+    
+endclass
+
+
+
+module constraint_example;
+  seq_item item;
+    
+  initial begin
+    item = new();
+    repeat(1)begin
+    item.randomize();
+      $display("%p",item.even);
+      $display("%p",item.odd);
+    end
+  end
+endmodule
+
+//Write constraint to generate random values 25,27,30,36,40,45 without using "set 
+membership".
+
+class seq_item;
+ rand int  val;
+  //real a;
+  constraint arra_a{
+    val inside {[24:46]};
+    (val %5==0)||(val%9==0);
+    val!=35;
+  
+  }
+  
+  
+endclass
+
+
+
+module constraint_example;
+  seq_item item;
+    
+  initial begin
+    item = new();
+    repeat(5)begin
+    item.randomize();
+      $display("%d",item.val);
+    end
+  end
+endmodule
+
+
+
+
+
+// Write a constraint to generate unique random values without using 
+randc and unique constraint, also without pre/post randomization methods.
+class first;
+  rand bit [4:0]a[];
+  
+  constraint cons{ a.size==6;
+                 }
+  constraint arr{
+                  foreach(a[i]){
+                    foreach(a[j]){
+                      if(i!=j){
+                        a[i]!=a[j];
+                         
+                    
+                    }
+                  }
+  
+                    }}
+  
+  
+endclass
+module tb;
+  first f;
+  initial begin
+    f=new();
+    f.randomize();
+    $display("%p",f.a);
+    
+  end
+endmodule
+// Write a constraint on a 16 bit rand vector to generate alternate 
+pairs of 0's and 1's.              
+
+class first;
+  rand bit [15:0] a;
+  
+  constraint cons{
+    foreach(a[i])
+      if(i%2==0)
+        a[i]==a[i+1];
+        else
+          a[i+1]!=a[i];
+  
+ }
+  
+ 
+endclass
+
+module tb;
+  first f;
+  
+  initial begin
+    f=new();
+    f.randomize();
+    $display("%b",f.a);
+    
+  end
+  
+  
+  
+endmodule      

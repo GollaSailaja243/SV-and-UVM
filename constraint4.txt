@@ -1,0 +1,108 @@
+
+//  Write a constraint to generate a random even number between 50 and 100.
+class first; 
+  rand int arr; 
+  constraint c1 {
+                 arr inside {[50:100]};
+                
+                } 
+  constraint c2 {
+   
+    arr%2==0;
+       
+   
+  }
+endclass 
+       
+     
+ 
+
+module tb;
+  first f1;
+  initial begin
+    f1=new();
+    repeat(10)begin
+    f1.randomize();
+    $display("arr:%d",f1.arr);
+    end
+  end
+ 
+  
+  
+  
+endmodule
+
+
+//  . Write a constraint on a two-dimensional array to generate even numbers in the first 
+//4 locations and odd numbers in the next 4 locations. 
+class first; 
+  rand bit [4:0] arr[2][4]; 
+  
+   constraint c2 {
+        foreach(arr[1][i]){
+          arr[1][i]%2==1;
+        
+    }} 
+ 
+  
+  
+  constraint c1 {
+    foreach(arr[0][i]){
+      arr[0][i]%2==0;
+        
+   } } 
+     
+ 
+endclass 
+       
+     
+ 
+
+module tb;
+  first f1;
+  initial begin
+    f1=new();
+    repeat(1)begin
+    f1.randomize();
+      $display("arr:%p",f1.arr);
+    end
+  end
+ 
+  
+  
+  
+endmodule
+
+// Write a constraint to generate an array with unique values and multiples of 3. 
+class first; 
+  rand bit [4:0] arr[]; 
+  
+   constraint c1 {
+     arr.size==10;
+        foreach(arr[i]){
+          arr[i]%3==0;
+        
+    }} 
+  constraint c2 { unique {arr};
+     } 
+     
+ 
+endclass 
+       
+     
+ 
+
+module tb;
+  first f1;
+  initial begin
+    f1=new();
+    repeat(1)begin
+    f1.randomize();
+      $display("arr:%p",f1.arr);
+    end
+  end
+ 
+  
+  
+  
+endmodule

@@ -1,0 +1,140 @@
+//. Write a constraint to display the Fibonacci sequence. 
+
+class first;
+  rand bit [4:0] arr[];
+  constraint constr{
+    arr.size==10;
+    foreach(arr[i])
+      if(i<2)
+        arr[i]==arr[i];
+      else
+        arr[i]==arr[i-1]+arr[i-2];
+  
+  }
+  
+  
+  
+endclass
+module tb;
+  first f;
+  initial begin
+    f=new();
+    f.randomize();
+    $display("arr:%p",f.arr);
+  end
+//  Write a constraint such that even locations contain odd numbers and
+ //odd locations contains even numbers.
+class first;
+  rand bit [4:0] arr[];
+  constraint constr{
+    arr.size==10;
+    foreach(arr[i])
+      if(i%2==0)
+        arr[i]%2==1;
+      else
+        arr[i]%2==0;
+  
+  }
+  
+  
+  
+endclass
+module tb;
+  first f;
+  initial begin
+    f=new();
+    f.randomize();
+    $display("arr:%p",f.arr);
+  end
+  
+  
+  
+  
+endmodule
+
+//Write a constraint to generate a pattern 0102030405.
+class first;
+  rand bit [4:0] arr[];
+  constraint constr{
+    arr.size==10;
+    foreach(arr[i])
+      if(i%2==0)
+        arr[i]==0;
+      else
+        arr[i]==(i+1)/2;
+  
+  }
+  
+  
+  
+endclass
+module tb;
+  first f;
+  initial begin
+    f=new();
+    f.randomize();
+    $display("arr:%p",f.arr);
+  end
+  
+  
+  
+  
+endmodule
+  
+// Write a constraint in such a way that for read transaction 30% time and
+ //for write transaction 70% time for the signal wr_rd.0->rd,1->wr operation
+class first;
+  
+  rand bit wr_rd;
+  constraint constr{
+    wr_rd dist {0:=3,1:=7};
+  
+  }
+  
+  
+  
+endclass
+module tb;
+  first f;
+  initial begin
+    f=new();
+    repeat(10)begin
+    f.randomize();
+    $display("arr:%d",f.wr_rd);
+  end
+  end
+  
+  
+  
+endmodule
+
+//   Write a constraint for a 16-bit variable such that no two consecutive ones should be generated
+class first;
+  
+  rand bit [15:0]arr;
+  constraint constr{
+  
+    foreach(arr[i]){
+      arr[i]!=arr[i+1];
+      
+      
+      
+      }
+  }
+  
+ 
+endclass
+module tb;
+  first f;
+  initial begin
+    f=new();
+    repeat(1)begin
+    f.randomize();
+      $display("arr:%b",f.arr);
+  end
+  end
+  
+  
+  
+endmodule  
+  
