@@ -1,0 +1,250 @@
+// Code your design here
+module mux
+  (
+    input [3:0] a,b,c,d, ////input data port have size of 4-bit
+    input [1:0] sel,     ////control port have size of 2-bit
+    output reg [3:0] y 
+  );
+  
+  always@(*)
+    begin
+      case(sel)
+        2'b00: y = a;
+        2'b01: y = b;
+        2'b10: y = c;
+        2'b11: y = d;
+      endcase
+    end
+  
+  
+endmodule
+interface mux_if;
+  logic [3:0]a,b,c,d;
+  logic [1:0]sel;
+  logic [3:0]y;
+  
+endinterface
+
+/**************************** mux code*************************************/
+
+
+// Code your testbench here
+// or browse Examples
+`include "uvm_macros.svh"
+import uvm_pkg::*;
+
+class transaction extends uvm_sequence_item;
+  `uvm_object_utils(transaction)
+  rand bit [3:0]a,b,c,d;
+  rand bit [1:0]sel;
+  bit [3:0]y;
+  function new(string path="transaction");
+    super.new(path);
+  endfunction
+  
+endclass
+/////////////////////////////////////////////////////////////////////
+class generator extends uvm_sequence#(transaction);
+  `uvm_object_utils(generator)
+  transaction t;
+  function new(string path="generator");
+    super.new(path);
+  endfunction
+  
+  virtual task body();
+    t=transaction::type_id::create("t");
+    repeat(5)begin
+      start_item(t);
+      assert(t.randomize());
+      `uvm_info("[GEN]",$sformatf("a:%d || b:%d || c:%d || d:%d || sel:%d",t.a,t.b,t.c,t.d,t.sel),UVM_NONE)
+      finish_item(t);
+      
+    end
+  endtask
+  
+endclass
+////////////////////////////////////////////////////////////////////////////
+class driver extends uvm_driver#(transaction);
+  `uvm_component_utils(driver)
+  transaction td;
+  virtual mux_if mif;
+  function new(string path="driver",uvm_component parent =null);
+    super.new(path,parent);
+  endfunction
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    td=transaction::type_id::create("td");
+    if(!uvm_config_db#(virtual mux_if)::get(this,"","mif",mif))
+      `uvm_error("[DRV]","unable to acces the config db");
+  endfunction
+  virtual task run_phase(uvm_phase phase);
+    forever begin
+      seq_item_port.get_next_item(td);
+      mif.a<=td.a;
+      mif.b<=td.b;
+      mif.c<=td.c;
+      mif.d<=td.d;
+      mif.sel<=td.sel;
+      `uvm_info("[DRV]",$sformatf("a:%d || b:%d || c:%d || d:%d || sel:%d",td.a,td.b,td.c,td.d,td.sel),UVM_NONE)
+      seq_item_port.item_done();
+      #10;
+    end
+  endtask
+  
+endclass
+//////////////////////////////////////////////////////////////////
+class monitor extends uvm_monitor;
+  `uvm_component_utils(monitor)
+  transaction t;
+  virtual mux_if mif;
+  uvm_analysis_port#(transaction) send;
+  function new(string path="monitor",uvm_component parent =null);
+    super.new(path,parent);
+    send=new("send",this);
+  endfunction
+   virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    t=transaction::type_id::create("t");
+    if(!uvm_config_db#(virtual mux_if)::get(this,"","mif",mif))
+      `uvm_error("[MON]","unable to acces the config db");
+  endfunction
+  virtual task run_phase(uvm_phase phase);
+    forever begin
+      #10;
+      t.a= mif.a;
+      t.b=mif.b;
+      t.c= mif.c;
+      t.d=mif.d;
+      t.sel= mif.sel;
+      t.y=mif.y;
+      `uvm_info("[MON]",$sformatf("a:%d || b:%d || c:%d || d:%d || sel:%d y:%d",t.a,t.b,t.c,t.d,t.sel,t.y),UVM_NONE)
+      send.write(t);
+      
+    end
+  endtask
+  
+  
+endclass
+/////////////////////////////////////////////////////////////////////////////////
+class scoreboard extends uvm_scoreboard;
+  `uvm_component_utils(scoreboard)
+  transaction ts;
+  uvm_analysis_imp#(transaction,scoreboard) recv;
+  function new(string path="monitor",uvm_component parent =null);
+    super.new(path,parent);
+    recv=new("recv",this);
+  endfunction
+   virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    ts=transaction::type_id::create("ts");
+   endfunction
+  
+  virtual function void write(input transaction t);
+    ts=t;
+    if(ts.sel==0)begin 
+      if(ts.y==ts.a)
+         `uvm_info("[SCO]","test passed",UVM_NONE)
+        end
+    else if(ts.sel==1)begin
+      if(ts.y==ts.b)
+         `uvm_info("[SCO]","test passed",UVM_NONE)
+        end
+    else if(ts.sel==2) begin
+      if(ts.y==ts.c)
+         `uvm_info("[SCO]","test passed",UVM_NONE)
+        end
+    else if(ts.sel==3) begin
+      if(ts.y==ts.d)
+         `uvm_info("[SCO]","test passed",UVM_NONE) 
+        end
+    else begin
+      `uvm_info("[SCO]","test failed",UVM_NONE)
+    end
+  endfunction
+  
+endclass
+/////////////////////////////////////////////////////////////
+class agent extends uvm_agent;
+  `uvm_component_utils(agent)
+  driver d;
+  monitor m;
+  uvm_sequencer#(transaction) seqr;
+  
+  function new(string path ="agent",uvm_component parent=null);
+    super.new(path,parent);
+  endfunction
+  
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    d=driver::type_id::create("d",this);
+    m=monitor::type_id::create("m",this);
+    seqr=uvm_sequencer#(transaction)::type_id::create("seqr",this);
+   endfunction
+  
+  virtual function void connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    d.seq_item_port.connect(seqr.seq_item_export);
+  endfunction
+  
+endclass
+///////////////////////////////////////////////////////////////////////////////////////
+class env extends uvm_env;
+  `uvm_component_utils(env)
+  agent a;
+  scoreboard s;
+  
+  function new(string path ="env",uvm_component parent=null);
+    super.new(path,parent);
+  endfunction
+  
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    a=agent::type_id::create("a",this);
+    s=scoreboard::type_id::create("s",this);
+   
+   endfunction
+  
+  virtual function void connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    a.m.send.connect(s.recv);
+  endfunction
+  
+endclass
+/////////////////////////////////////////////////////////////////////////////
+class test extends uvm_test;
+  `uvm_component_utils(test)
+  env e;
+  generator g;
+  
+  function new(string path ="test",uvm_component parent=null);
+    super.new(path,parent);
+  endfunction
+  
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    e=env::type_id::create("e",this);
+    g=generator::type_id::create("g",this);
+    
+   endfunction
+  virtual task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    g.start(e.a.seqr);
+    #10;
+    phase.drop_objection(this);
+  endtask
+  
+endclass
+/////////////////////////////////////////////////////////
+module tb;
+  mux_if mif();
+  mux dut(.a(mif.a),.b(mif.b),.c(mif.c),.d(mif.d),.sel(mif.sel),.y(mif.y));
+  
+  initial begin
+    uvm_config_db#(virtual mux_if)::set(null,"*","mif",mif);
+    run_test("test");
+  end
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+  end
+endmodule
