@@ -1,0 +1,64 @@
+//design
+module counter(
+   input clk,rst,updown,  
+  output reg[3:0]count
+    );
+
+    
+    
+    
+  always @(posedge clk)
+     begin
+       if(rst == 1) 
+            count <= 0;
+        else    
+          if(updown == 1)   
+            if(count == 15)
+                    count <= 0;
+                else
+                    count <= count + 1; 
+            else  
+              if(count == 0)
+                    count <= 15;
+                else
+                    count <= count - 1; //Decrement counter
+     end    
+    
+endmodule
+
+///////////////////////////////linear tb/////////////////////////////////
+module tb;
+  reg clk,rst,updown;
+  reg [3:0]din;
+  wire [3:0]count;
+  
+  initial begin
+    clk=0;
+    rst=0;
+    #10rst=1;
+    #10rst=0;
+    
+    
+  end
+  
+  always #5clk=~clk;
+  
+  counter dut(clk,rst,updown,count);
+  initial begin
+    $monitor("count:%d",count);
+    
+ 
+    #10updown=1;
+    #150updown=0;
+    
+   
+    
+  end
+  
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+    #300 $finish;
+  end
+  
+endmodule
