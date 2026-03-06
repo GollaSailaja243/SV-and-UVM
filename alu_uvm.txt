@@ -1,0 +1,316 @@
+
+// Code your design here
+module ALU (
+    input [2:0] ALUControl,   // ALU control signal (3 bits)
+  input [31:0] SrcA,      
+  input [31:0] SrcB,      
+  output reg [31:0] ALUResult, 
+    output reg Zero           // Zero flag (1 if result is 0, otherwise 0)
+);
+
+always @(*) begin
+    case (ALUControl)
+        3'b000: ALUResult = SrcA & SrcB;                // AND
+        3'b001: ALUResult = SrcA | SrcB;                // OR
+        3'b010: ALUResult = SrcA + SrcB;                // ADD
+        3'b011: ALUResult = 0;                          // Reserved
+        3'b100: ALUResult = SrcA & ~SrcB;               // AND with complement
+        3'b101: ALUResult = SrcA | ~SrcB;               // OR with complement
+        3'b110: ALUResult = SrcA - SrcB;                // SUB
+        3'b111: ALUResult = (SrcA < SrcB) ? 1 : 0;      // SLT
+        default: ALUResult = 0;                        
+    endcase
+
+    Zero = (ALUResult == 32'b0);
+end
+
+endmodule
+
+interface alu_if;
+  logic [2:0] ALUControl;  
+  logic[31:0] SrcA;    
+  logic [31:0] SrcB;   
+  logic [32:0] ALUResult;
+    logic Zero ;
+  
+endinterface
+//////////////////////////////
+
+
+
+
+class transaction extends uvm_sequence_item;
+  `uvm_object_utils(transaction)
+  rand bit [2:0] ALUControl;   // ALU control signal (3 bits)
+  rand bit [31:0] SrcA;     
+  rand bit [31:0] SrcB;     
+  bit [31:0] ALUResult;
+  	   bit Zero ;
+  
+  function new(string path="transaction");
+    super.new(path);
+  endfunction
+  
+endclass
+///////////////////////////////////////////////
+class generator extends uvm_sequence#(transaction);
+  `uvm_object_utils(generator)
+  transaction t;
+  
+  function new(string path="generator");
+    super.new(path);
+  endfunction
+  
+  virtual task body();
+    t=transaction::type_id::create("transaction");
+    repeat(10) begin
+    start_item(t);
+      assert(t.randomize());
+     // `uvm_info("[GEN]",$sformatf("ALUControl:%b || SrcA:%d || SrcB:%d " ,t.ALUControl,t.SrcA, t.SrcB),UVM_NONE)
+      finish_item(t);
+    end
+  endtask
+endclass
+////////////////////////////////////////////////////////
+class driver extends uvm_driver#(transaction);
+  `uvm_component_utils(driver)
+  transaction tc;
+  virtual alu_if aif;
+  function new(string path="driver",uvm_component parent=null);
+    super.new(path,parent);
+  endfunction
+  
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    tc=transaction::type_id::create("tc");
+    
+    if(!uvm_config_db#(virtual alu_if)::get(this,"","aif",aif))
+      `uvm_error("[DRV]","unable to acces config db")
+  endfunction
+  
+  virtual task run_phase(uvm_phase phase);
+    forever begin
+      seq_item_port.get_next_item(tc);
+      aif.ALUControl<=tc.ALUControl;
+      aif.SrcA<=tc.SrcA;
+      aif.SrcB<=tc.SrcB;
+     
+     // `uvm_info("[DRV]",$sformatf("ALUControl:%b || SrcA:%d || SrcB:%d " ,tc.ALUControl,tc.SrcA, tc.SrcB),UVM_NONE)
+    #10;
+      seq_item_port.item_done();
+    end
+  endtask
+endclass
+
+/////////////////////////////////////////////////
+class monitor extends uvm_monitor;
+  `uvm_component_utils(monitor)
+  transaction t;
+  virtual alu_if aif;
+  uvm_analysis_port#(transaction) send;
+  function new(string path="monitor",uvm_component parent=null);
+    super.new(path,parent);
+    send=new("send",this);
+  endfunction
+  
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    t=transaction::type_id::create("t");
+     if(!uvm_config_db#(virtual alu_if)::get(this,"","aif",aif))
+       `uvm_error("[MON]","unable to acces config db");
+  endfunction
+  
+  virtual task run_phase(uvm_phase phase);
+    forever begin
+      #10;
+      t.ALUControl=aif.ALUControl;
+      t.SrcA=aif.SrcA;
+      t.SrcB= aif.SrcB;
+      t.ALUResult=aif.ALUResult;
+      t.Zero=aif.Zero;
+      //`uvm_info("[MON]",$sformatf("ALUControl:%b || SrcA:%d || SrcB:%d ||  ALUResult:%d || zero:%b" ,t.ALUControl,t.SrcA, t.SrcB,t. ALUResult,t.Zero),UVM_NONE)
+      send.write(t);
+    end
+    
+  endtask
+endclass
+//////////////////////////////////////////////
+class scoreboard extends uvm_scoreboard;
+  `uvm_component_utils(scoreboard)
+  transaction tr;
+  bit [31:0]fc,pc;//failed case,passed case
+  uvm_analysis_imp#(transaction,scoreboard) recv;
+  function new(string path="scoreboard",uvm_component parent=null);
+    super.new(path,parent);
+    recv=new("recv",this);
+  endfunction
+  
+  virtual function void build_phaase(uvm_phase phase);
+    super.build_phase(phase);
+    tr=transaction::type_id::create("tr");
+  endfunction
+  
+  virtual function void write(input transaction t);
+    tr=t;
+     case(tr.ALUControl) 
+       3'b000:if((tr.ALUResult==(tr.SrcA & tr.SrcB)))
+         pc=pc+1;
+         else 
+            fc=fc+1;
+       3'b001:if(tr.ALUResult==tr.SrcA | tr.SrcB)
+          pc=pc+1;
+          else
+            fc=fc+1;
+       3'b010:if(tr.ALUResult==tr.SrcA + tr.SrcB)
+          pc=pc+1;
+         else
+            fc=fc+1;
+       3'b011:if(tr.ALUResult==0)
+          pc=pc+1;
+         else
+            fc=fc+1;
+       3'b100:if(tr.ALUResult==(tr.SrcA & (~tr.SrcB))) 
+         pc=pc+1;
+         else 
+           fc=fc+1;
+              
+       3'b101:if(tr.ALUResult==tr.SrcA | (~ tr.SrcB))
+          pc=pc+1;
+         else
+           fc=fc+1;
+       3'b110: if(tr.ALUResult==tr.SrcA - tr.SrcB)
+          pc=pc+1;
+         else
+            fc=fc+1;
+       3'b111:if(tr.ALUResult==(tr.SrcA < tr.SrcB) ? 1 : 0)
+          pc=pc+1;
+         else
+           fc=fc+1;
+       default:if(tr.ALUResult> 7)
+         `uvm_info("[SCO]","out of range",UVM_NONE)
+          
+    
+  endcase
+        
+           
+  endfunction
+  virtual function void report_phase(uvm_phase phase);
+    super.report_phase(phase);
+       `uvm_info("[SCO]", $sformatf("Final Report: Passed = %0d, Failed = %0d", pc, fc), UVM_NONE)
+    
+       if (fc == 0) begin
+         `uvm_info("[SCO]", "All test cases passed. Simulation stopped.", UVM_NONE)
+      $finish;
+       end else if (pc>0 && fc!=0) begin
+      `uvm_error("[SCO]", "Some test cases failed! Check logs.");
+      $finish;
+    end
+  endfunction
+endclass
+///////////////////////////////////////////////////////////////////////////////////
+class agent extends uvm_agent;
+  `uvm_component_utils(agent)
+  driver d;
+  monitor m;
+  uvm_sequencer#(transaction) seqr;
+  
+  function new(string path ="agent",uvm_component parent=null);
+    super.new(path,parent);
+  endfunction
+  
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    d=driver::type_id::create("d",this);
+    m=monitor::type_id::create("m",this);
+    seqr=uvm_sequencer#(transaction)::type_id::create("seqr",this);
+   endfunction
+  
+  virtual function void connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    d.seq_item_port.connect(seqr.seq_item_export);
+  endfunction
+  
+endclass
+////////////////////////////////////////////////////////////
+class env extends uvm_env;
+  `uvm_component_utils(env)
+  agent a;
+  scoreboard s;
+  
+  function new(string path ="env",uvm_component parent=null);
+    super.new(path,parent);
+  endfunction
+  
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    a=agent::type_id::create("a",this);
+    s=scoreboard::type_id::create("s",this);
+   
+   endfunction
+  
+  virtual function void connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    a.m.send.connect(s.recv);
+  endfunction
+  
+endclass
+/////////////////////////////////////////////////////////
+class test extends uvm_test;
+  `uvm_component_utils(test)
+  env e;
+  generator g;
+  
+  function new(string path ="test",uvm_component parent=null);
+    super.new(path,parent);
+  endfunction
+  
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    e=env::type_id::create("e",this);
+    g=generator::type_id::create("g",this);
+    
+   endfunction
+  virtual task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    g.start(e.a.seqr);
+    #5;
+    phase.drop_objection(this);
+  endtask
+  
+endclass
+/////////////////////////////////////////////////////////////////////////////
+`include "uvm_macros.svh"
+import uvm_pkg::*;
+
+
+`include "transaction.sv"
+`include "generator.sv"
+`include "driver.sv"
+`include "monitor.sv"
+`include "agent.sv"
+`include "scoreboard.sv"
+`include "env.sv"
+`include "test.sv"
+
+
+
+module tb;
+  alu_if aif();
+  ALU dut(.ALUControl(aif.ALUControl),.SrcA(aif.SrcA),.SrcB(aif.SrcB),.ALUResult(aif.ALUResult),.Zero(aif.Zero));
+  
+ initial begin
+   uvm_config_db#(virtual alu_if)::set(null,"*","aif",aif);
+   run_test("test");
+ end
+  
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+    
+  end
+  
+  
+endmodule
+
+
+/////////////////////////////////////////////////
