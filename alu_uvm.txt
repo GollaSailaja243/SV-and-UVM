@@ -267,7 +267,7 @@ class test extends uvm_test;
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     e=env::type_id::create("e",this);
-    g=generator::type_id::create("g",this);
+    g=generator::type_id::create("g");
     
    endfunction
   virtual task run_phase(uvm_phase phase);
@@ -314,3 +314,4 @@ endmodule
 
 
 /////////////////////////////////////////////////
+
