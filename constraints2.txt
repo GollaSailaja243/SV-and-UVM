@@ -137,4 +137,56 @@ module tb;
   
   
 endmodule  
+
+///////prime num
+// Code your testbench here
+// or browse Examples
+class first;
+  rand bit [5:0]num;
+  rand bit [5:0]lwrange;
+  rand bit [5:0]uprange;
+  
+  constraint prime_num{
+    lwrange inside {[1:10]};
+    uprange inside {[40:50]};
+    solve lwrange,uprange before num;
+    num inside{[lwrange:uprange]};
+  
+  }
+  function int prime(int num);
+    if(num<2)
+      return 0;
+    else
+      for(int i=2;i<(num-1);i++)begin
+        if(num%i==0)begin
+          return 0;
+        end
+      end
+    return 1;
+    
+  endfunction
+  
+  function void post_randomize();
+    for(int i=lwrange;i<uprange;i++)begin
+      if(prime(i)==1)
+        $display("%d",i);
+      
+    end
+    
+    
+  endfunction
+  
+endclass
+module tb;
+  first f;
+  initial begin
+    f=new();
+    repeat(1)begin 
+      f.randomize();
+    end
+  end
+  
+  
+  
+endmodule
   
